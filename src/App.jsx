@@ -438,7 +438,7 @@ function AppInner() {
                   placeholder="1" suf="%"
                   tooltip="% of the year your property might sit empty. Section 8 tenants tend to stay much longer, so 1% is realistic — roughly 3–4 days per year." />
                 <Field label="Property Mgmt %" name="mgmtPct" value={form.mgmtPct} onChange={onChange}
-                  placeholder="8" suf="%" span2
+                  placeholder="8" suf="%"
                   tooltip="Property management fee as a % of gross annual rent. Typically 8–12%. Set to 0 if self-managing." />
               </div>
             </section>
@@ -516,7 +516,7 @@ function AppInner() {
                     value={r.dscr !== null ? r.dscr.toFixed(2) : 'N/A'}
                     sub={r.dscr !== null ? 'NOI ÷ annual debt service' : 'all-cash purchase'}
                     color={r.dscr === null ? 'text-gray-400' : r.dscr >= 1 ? 'text-green-400' : 'text-red-400'}
-                    tooltip="Debt Service Coverage Ratio — how many times your NOI covers the mortgage. Above 1.0 means income covers debt; lenders typically require 1.25+."
+                    tooltip="Debt Service Coverage Ratio — how many times your NOI covers the mortgage. Above 1.0 means income covers debt; most lenders typically require 1.0+."
                   />
                 </div>
 
