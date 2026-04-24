@@ -512,12 +512,6 @@ function AppInner() {
                     tooltip="Annual cash earned ÷ all cash you put in (down payment + closing costs + repairs). One of the most important metrics for real investors."
                   />
                   <MetricCard
-                    label="Net Operating Income"
-                    value={`${fmt$(r.noi / 12)}/mo`}
-                    sub={`${fmt$(r.noi)}/yr`}
-                    tooltip="Income after all operating expenses but BEFORE your mortgage. Shows how profitable the property itself is, regardless of financing."
-                  />
-                  <MetricCard
                     label="DSCR"
                     value={r.dscr !== null ? r.dscr.toFixed(2) : 'N/A'}
                     sub={r.dscr !== null ? 'NOI ÷ annual debt service' : 'all-cash purchase'}
@@ -560,14 +554,6 @@ function AppInner() {
                       <tr>
                         <td className="px-4 py-2 text-gray-400">Vacancy Loss</td>
                         <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.vacancyLoss / 12)} /month</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2 text-gray-400">
-                          <Tooltip text="Expected rent after vacancy — the realistic monthly income used for all further calculations.">
-                            Effective Gross Income
-                          </Tooltip>
-                        </td>
-                        <td className="px-4 py-2 text-right tabular-nums text-white">{fmt$(r.egi / 12)} /month</td>
                       </tr>
                       <tr>
                         <td className="px-4 py-2 text-gray-400">Property Taxes</td>
