@@ -113,6 +113,7 @@ const analyze = (f) => {
   const insMonthly     = parseCurrency(f.insurance)
   const repairCosts    = parseCurrency(f.repairCosts)
   const maintPct       = +f.maintenancePct  || 0
+  const mgmtPct        = +f.mgmtPct         || 0
   const vacPct         = +f.vacancyPct      || 0
   const dpPct          = Math.min(100, Math.max(0, +f.downPaymentPct  || 100))
   const rate           = +f.interestRate    || 0
@@ -123,7 +124,8 @@ const analyze = (f) => {
   const vacancyLoss = annualRent * (vacPct / 100)
   const egi         = annualRent - vacancyLoss
   const maintenance = annualRent * (maintPct / 100)
-  const opex        = (taxesMonthly * 12) + (insMonthly * 12) + maintenance
+  const mgmt        = annualRent * (mgmtPct / 100)
+  const opex        = (taxesMonthly * 12) + (insMonthly * 12) + maintenance + mgmt
   const noi         = egi - opex
   const capRate     = price > 0 ? (noi / price) * 100 : 0
 
@@ -137,12 +139,13 @@ const analyze = (f) => {
   const monthlyCF    = annualCF / 12
   const coc          = totalUpfront > 0 ? (annualCF / totalUpfront) * 100 : 0
   const pitiMonthly  = mtgMonthly + taxesMonthly + insMonthly
+  const dscr         = annualDebt > 0 ? noi / annualDebt : null
 
   return {
     annualRent, vacancyLoss, egi,
-    taxesMonthly, insMonthly, maintenance, opex, noi,
+    taxesMonthly, insMonthly, maintenance, mgmt, opex, noi,
     capRate, downPayment, closingCosts, repairCosts, loanAmount,
-    mtgMonthly, annualDebt, totalUpfront, annualCF, monthlyCF, coc, pitiMonthly,
+    mtgMonthly, annualDebt, totalUpfront, annualCF, monthlyCF, coc, pitiMonthly, dscr,
   }
 }
 
@@ -179,6 +182,14 @@ function Tooltip({ text, children }) {
 
 /* ── Field ───────────────────────────────────────────────────────────────── */
 function Field({ label, name, value, onChange, placeholder, pre, suf, isText, isCurrency, required, span2, tooltip }) {
+  const handleChange = (e) => {
+    if (!isCurrency) { onChange(e); return }
+    const raw = e.target.value.replace(/[^0-9.]/g, '')
+    const parts = raw.split('.')
+    const intFormatted = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    const formatted = parts.length > 1 ? `${intFormatted}.${parts.slice(1).join('')}` : intFormatted
+    onChange({ target: { name: e.target.name, value: formatted } })
+  }
   return (
     <div className={span2 ? 'col-span-2' : ''}>
       <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
@@ -196,7 +207,7 @@ function Field({ label, name, value, onChange, placeholder, pre, suf, isText, is
           inputMode={isCurrency ? 'decimal' : undefined}
           name={name}
           value={value}
-          onChange={onChange}
+          onChange={handleChange}
           placeholder={placeholder || '0'}
           step={isCurrency ? undefined : 'any'}
           min={isCurrency ? undefined : '0'}
@@ -256,8 +267,8 @@ function ScoreBadge({ monthlyCF }) {
 /* ── Defaults ────────────────────────────────────────────────────────────── */
 const DEFAULTS = {
   address: '', askingPrice: '', monthlyRent: '',
-  propertyTaxes: '', insurance: '', repairCosts: '',
-  maintenancePct: '5', vacancyPct: '1', cashFlowGoal: '500',
+  propertyTaxes: '150', insurance: '100', repairCosts: '',
+  maintenancePct: '5', vacancyPct: '1', mgmtPct: '8',
   downPaymentPct: '20', interestRate: '7', loanTerm: '30', closingCostsPct: '3',
 }
 
@@ -361,8 +372,7 @@ function AppInner() {
     }
   }
 
-  const r      = result
-  const cfGoal = parseCurrency(r?._form?.cashFlowGoal) || 500
+  const r = result
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -427,9 +437,9 @@ function AppInner() {
                 <Field label="Vacancy %" name="vacancyPct" value={form.vacancyPct} onChange={onChange}
                   placeholder="1" suf="%"
                   tooltip="% of the year your property might sit empty. Section 8 tenants tend to stay much longer, so 1% is realistic — roughly 3–4 days per year." />
-                <Field label="Cash Flow Goal / mo" name="cashFlowGoal" value={form.cashFlowGoal} onChange={onChange}
-                  placeholder="500" pre="$" isCurrency span2
-                  tooltip="Your personal monthly profit target. The cash flow card turns green when you hit this number. The deal score uses fixed thresholds: Good = $450+/mo, Fair = $250–449/mo, Poor = under $250/mo." />
+                <Field label="Property Mgmt %" name="mgmtPct" value={form.mgmtPct} onChange={onChange}
+                  placeholder="8" suf="%" span2
+                  tooltip="Property management fee as a % of gross annual rent. Typically 8–12%. Set to 0 if self-managing." />
               </div>
             </section>
 
@@ -483,9 +493,9 @@ function AppInner() {
                   <MetricCard
                     label="Monthly Cash Flow"
                     value={fmt$(r.monthlyCF)}
-                    sub={`Your goal: ${fmt$(cfGoal)}/mo`}
-                    color={r.monthlyCF >= cfGoal ? 'text-green-400' : 'text-red-400'}
-                    tooltip="Money left in your pocket each month after every expense and mortgage payment. Turns green when you hit your personal cash flow goal."
+                    sub="after all expenses & debt"
+                    color={r.monthlyCF >= 450 ? 'text-green-400' : r.monthlyCF >= 250 ? 'text-yellow-400' : 'text-red-400'}
+                    tooltip="Money left in your pocket each month after every expense and mortgage payment."
                   />
                   <MetricCard
                     label="Cap Rate"
@@ -506,6 +516,13 @@ function AppInner() {
                     value={`${fmt$(r.noi / 12)}/mo`}
                     sub={`${fmt$(r.noi)}/yr`}
                     tooltip="Income after all operating expenses but BEFORE your mortgage. Shows how profitable the property itself is, regardless of financing."
+                  />
+                  <MetricCard
+                    label="DSCR"
+                    value={r.dscr !== null ? r.dscr.toFixed(2) : 'N/A'}
+                    sub={r.dscr !== null ? 'NOI ÷ annual debt service' : 'all-cash purchase'}
+                    color={r.dscr === null ? 'text-gray-400' : r.dscr >= 1 ? 'text-green-400' : 'text-red-400'}
+                    tooltip="Debt Service Coverage Ratio — how many times your NOI covers the mortgage. Above 1.0 means income covers debt; lenders typically require 1.25+."
                   />
                 </div>
 
@@ -564,6 +581,12 @@ function AppInner() {
                         <td className="px-4 py-2 text-gray-400">Maintenance</td>
                         <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.maintenance / 12)} /month</td>
                       </tr>
+                      {r.mgmt > 0 && (
+                        <tr>
+                          <td className="px-4 py-2 text-gray-400">Property Management</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.mgmt / 12)} /month</td>
+                        </tr>
+                      )}
                       <tr>
                         <td className="px-4 py-2 text-gray-400">
                           <Tooltip text="Income after all operating costs but before your mortgage — key for comparing deals regardless of financing.">
@@ -610,10 +633,19 @@ function AppInner() {
                   </table>
                 </div>
 
-                {r.mtgMonthly > 0 && (
-                  <div className="bg-gray-800/40 rounded-xl border border-gray-700/40 px-4 py-3 flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Monthly Mortgage Payment</span>
-                    <span className="text-white font-semibold tabular-nums">{fmt$(r.mtgMonthly)} /month</span>
+                {r.loanAmount > 0 && (
+                  <div className="bg-gray-800/40 rounded-xl border border-gray-700/40 p-4 space-y-2">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Mortgage</p>
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500">Loan Balance</p>
+                        <p className="text-2xl font-black text-white tabular-nums">{fmt$(r.loanAmount)}</p>
+                      </div>
+                      <div className="text-right text-xs text-gray-400 space-y-0.5">
+                        <p>Monthly P&I <span className="text-white font-semibold tabular-nums">{fmt$(r.mtgMonthly)}</span></p>
+                        <p>PITI <span className="text-white font-semibold tabular-nums">{fmt$(r.pitiMonthly)}</span></p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
