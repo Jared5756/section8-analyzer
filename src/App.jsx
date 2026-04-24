@@ -1,6 +1,91 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment, Component } from 'react'
 
-/* ── Formatters ─────────────────────────────────────────────────────────── */
+/* ── localStorage helpers — never throw ─────────────────────────────────── */
+function loadDeals() {
+  try {
+    const raw = localStorage.getItem('s8deals')
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function saveDeals(deals) {
+  try {
+    localStorage.setItem('s8deals', JSON.stringify(deals))
+    return true
+  } catch {
+    return false  // storage full or unavailable (private browsing, etc.)
+  }
+}
+
+/* ── Error Boundary — catches render crashes, shows recovery UI ─────────── */
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { crashed: false, message: '' }
+  }
+  static getDerivedStateFromError(err) {
+    return { crashed: true, message: err?.message || 'Unknown error' }
+  }
+  componentDidCatch(err, info) {
+    console.error('[Section 8 Analyzer] render error:', err, info)
+  }
+  handleReset = () => {
+    try { localStorage.removeItem('s8deals') } catch {}
+    window.location.reload()
+  }
+  render() {
+    if (!this.state.crashed) return this.props.children
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-8 text-center">
+        <div className="max-w-sm">
+          <div className="w-12 h-12 rounded-full bg-red-950 border border-red-800 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+          </div>
+          <p className="text-white font-bold text-lg mb-1">Something went wrong</p>
+          <p className="text-gray-500 text-sm mb-6">{this.state.message}</p>
+          <button
+            onClick={this.handleReset}
+            className="bg-sky-500 hover:bg-sky-400 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors text-sm"
+          >
+            Clear data &amp; reload
+          </button>
+          <p className="text-gray-700 text-xs mt-3">This will clear your saved deals.</p>
+        </div>
+      </div>
+    )
+  }
+}
+
+/* ── Toast notification ──────────────────────────────────────────────────── */
+function Toast({ toast }) {
+  if (!toast) return null
+  const isSuccess = toast.type !== 'error'
+  return (
+    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-medium pointer-events-none
+      ${isSuccess ? 'bg-green-900/95 border border-green-700 text-green-200' : 'bg-red-900/95 border border-red-700 text-red-200'}`}
+      style={{ backdropFilter: 'blur(8px)' }}
+    >
+      {isSuccess ? (
+        <svg className="w-4 h-4 flex-shrink-0 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        </svg>
+      ) : (
+        <svg className="w-4 h-4 flex-shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+        </svg>
+      )}
+      {toast.message}
+    </div>
+  )
+}
+
+/* ── Formatters ──────────────────────────────────────────────────────────── */
 const fmt$ = (n) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'USD',
@@ -21,8 +106,8 @@ const calcMtg = (principal, annualRatePct, termYears) => {
 const analyze = (f) => {
   const price          = +f.askingPrice     || 0
   const rent           = +f.monthlyRent     || 0
-  const taxesMonthly   = +f.propertyTaxes   || 0   // user enters monthly
-  const insMonthly     = +f.insurance       || 0   // user enters monthly
+  const taxesMonthly   = +f.propertyTaxes   || 0
+  const insMonthly     = +f.insurance       || 0
   const repairCosts    = +f.repairCosts     || 0
   const maintPct       = +f.maintenancePct  || 0
   const vacPct         = +f.vacancyPct      || 0
@@ -31,33 +116,23 @@ const analyze = (f) => {
   const term           = +f.loanTerm        || 30
   const closingCostPct = +f.closingCostsPct || 0
 
-  // Income (annual)
   const annualRent  = rent * 12
   const vacancyLoss = annualRent * (vacPct / 100)
   const egi         = annualRent - vacancyLoss
-
-  // Operating expenses (annual) — taxes & insurance converted from monthly
   const maintenance = annualRent * (maintPct / 100)
   const opex        = (taxesMonthly * 12) + (insMonthly * 12) + maintenance
   const noi         = egi - opex
   const capRate     = price > 0 ? (noi / price) * 100 : 0
 
-  // Financing
   const downPayment  = price * (dpPct / 100)
   const closingCosts = price * (closingCostPct / 100)
   const loanAmount   = price - downPayment
   const mtgMonthly   = dpPct < 100 ? calcMtg(loanAmount, rate, term) : 0
   const annualDebt   = mtgMonthly * 12
-
-  // Total upfront capital = down payment + closing costs + repairs
   const totalUpfront = downPayment + closingCosts + repairCosts
-
-  // Cash flow
-  const annualCF  = noi - annualDebt
-  const monthlyCF = annualCF / 12
-
-  // Cash-on-cash uses ALL upfront capital
-  const coc = totalUpfront > 0 ? (annualCF / totalUpfront) * 100 : 0
+  const annualCF     = noi - annualDebt
+  const monthlyCF    = annualCF / 12
+  const coc          = totalUpfront > 0 ? (annualCF / totalUpfront) * 100 : 0
 
   return {
     annualRent, vacancyLoss, egi,
@@ -67,12 +142,12 @@ const analyze = (f) => {
   }
 }
 
-/* ── Fixed score thresholds ──────────────────────────────────────────────── */
-// Good ≥ $450/mo | Fair $250–$449/mo | Poor < $250/mo
+/* ── Score — fixed thresholds ────────────────────────────────────────────── */
+// These full class strings must stay as literals so Tailwind includes them in the bundle.
 const getScore = (monthlyCF) => {
-  if (monthlyCF >= 450) return { label: 'Good', cls: 'bg-green-900/50 text-green-400 ring-1 ring-green-600'   }
-  if (monthlyCF >= 250) return { label: 'Fair', cls: 'bg-yellow-900/50 text-yellow-400 ring-1 ring-yellow-600' }
-  return                       { label: 'Poor', cls: 'bg-red-900/50 text-red-400 ring-1 ring-red-600'         }
+  if (monthlyCF >= 450) return { label: 'Good', cls: 'bg-green-900/50 text-green-400 ring-1 ring-green-600'    }
+  if (monthlyCF >= 250) return { label: 'Fair', cls: 'bg-yellow-900/50 text-yellow-400 ring-1 ring-yellow-600'  }
+  return                       { label: 'Poor', cls: 'bg-red-900/50 text-red-400 ring-1 ring-red-600'           }
 }
 
 /* ── Tooltip ─────────────────────────────────────────────────────────────── */
@@ -157,22 +232,10 @@ function ScoreBadge({ monthlyCF }) {
   const fair = !good && monthlyCF >= 250
 
   const cfg = good
-    ? {
-        label: 'GOOD DEAL',
-        desc:  "Great numbers — you're in solid profit territory.",
-        ring: 'ring-green-500',  bg: 'bg-green-950/70',  text: 'text-green-300',  dot: 'bg-green-400',
-      }
+    ? { label: 'GOOD DEAL', desc: "Great numbers — you're in solid profit territory.",      ring: 'ring-green-500',  bg: 'bg-green-950/70',  text: 'text-green-300',  dot: 'bg-green-400'  }
     : fair
-    ? {
-        label: 'FAIR DEAL',
-        desc:  'It works, but you can probably find better.',
-        ring: 'ring-yellow-500', bg: 'bg-yellow-950/70', text: 'text-yellow-300', dot: 'bg-yellow-400',
-      }
-    : {
-        label: 'POOR DEAL',
-        desc:  'Better opportunities are out there — keep looking.',
-        ring: 'ring-red-500',    bg: 'bg-red-950/70',    text: 'text-red-300',    dot: 'bg-red-400',
-      }
+    ? { label: 'FAIR DEAL', desc: 'It works! You might even be able to find better.',            ring: 'ring-yellow-500', bg: 'bg-yellow-950/70', text: 'text-yellow-300', dot: 'bg-yellow-400' }
+    : { label: 'POOR DEAL', desc: 'Better opportunities are out there — keep looking.',     ring: 'ring-red-500',    bg: 'bg-red-950/70',    text: 'text-red-300',    dot: 'bg-red-400'    }
 
   return (
     <div className={`rounded-2xl ring-2 ${cfg.ring} ${cfg.bg} p-5 col-span-2 flex items-center justify-between gap-4`}>
@@ -193,21 +256,33 @@ const DEFAULTS = {
   downPaymentPct: '20', interestRate: '7', loanTerm: '30', closingCostsPct: '3',
 }
 
-/* ── App ─────────────────────────────────────────────────────────────────── */
-export default function App() {
+/* ── App (wrapped in ErrorBoundary at export) ────────────────────────────── */
+function AppInner() {
   const [form,       setForm]       = useState(DEFAULTS)
   const [result,     setResult]     = useState(null)
   const [err,        setErr]        = useState('')
   const [saved,      setSaved]      = useState(false)
   const [expandedId, setExpandedId] = useState(null)
   const [loadedId,   setLoadedId]   = useState(null)
-  const topRef = useRef(null)
+  const [toast,      setToast]      = useState(null)
+  const toastTimer = useRef(null)
+  const topRef     = useRef(null)
 
-  const [deals, setDeals] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('s8deals') || '[]') } catch { return [] }
-  })
+  const [deals, setDeals] = useState(loadDeals)
 
-  useEffect(() => { localStorage.setItem('s8deals', JSON.stringify(deals)) }, [deals])
+  // Persist deals whenever they change
+  useEffect(() => {
+    const ok = saveDeals(deals)
+    if (!ok && deals.length > 0) {
+      showToast('Could not save — browser storage may be full.', 'error')
+    }
+  }, [deals])
+
+  const showToast = (message, type = 'success') => {
+    clearTimeout(toastTimer.current)
+    setToast({ message, type })
+    toastTimer.current = setTimeout(() => setToast(null), 3500)
+  }
 
   const onChange = (e) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
@@ -220,30 +295,42 @@ export default function App() {
       setErr('Asking price and monthly rent are required.')
       return
     }
-    setResult({ ...analyze(form), _form: { ...form } })
-    setSaved(false)
-    setLoadedId(null)
+    try {
+      setResult({ ...analyze(form), _form: { ...form } })
+      setSaved(false)
+      setLoadedId(null)
+    } catch (e) {
+      setErr('Calculation error — please check your inputs.')
+      console.error(e)
+    }
   }
 
   const onSave = () => {
     if (!result || saved) return
-    const score = getScore(result.monthlyCF)
-    setDeals(d => [{
-      id:           Date.now(),
-      date:         new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
-      address:      result._form.address || 'Unnamed Property',
-      askingPrice:  +result._form.askingPrice,
-      monthlyRent:  +result._form.monthlyRent,
-      capRate:      result.capRate,
-      monthlyCF:    result.monthlyCF,
-      coc:          result.coc,
-      totalUpfront: result.totalUpfront,
-      scoreLabel:   score.label,
-      scoreCls:     score.cls,
-      notes:        '',
-      _form:        { ...result._form },
-    }, ...d])
-    setSaved(true)
+    try {
+      const score = getScore(result.monthlyCF)
+      const newDeal = {
+        id:           Date.now(),
+        date:         new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
+        address:      result._form.address || 'Unnamed Property',
+        askingPrice:  +result._form.askingPrice,
+        monthlyRent:  +result._form.monthlyRent,
+        capRate:      result.capRate,
+        monthlyCF:    result.monthlyCF,
+        coc:          result.coc,
+        totalUpfront: result.totalUpfront,
+        scoreLabel:   score.label,
+        scoreCls:     score.cls,
+        notes:        '',
+        _form:        { ...result._form },
+      }
+      setDeals(d => [newDeal, ...d])
+      setSaved(true)
+      showToast('Deal saved successfully!')
+    } catch (e) {
+      showToast('Failed to save deal — please try again.', 'error')
+      console.error(e)
+    }
   }
 
   const onDelete = (id) => {
@@ -257,19 +344,25 @@ export default function App() {
 
   const onLoadDeal = (deal) => {
     if (!deal._form) return
-    setForm(deal._form)
-    setResult({ ...analyze(deal._form), _form: { ...deal._form } })
-    setSaved(true)
-    setLoadedId(deal.id)
-    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    try {
+      setForm(deal._form)
+      setResult({ ...analyze(deal._form), _form: { ...deal._form } })
+      setSaved(true)
+      setLoadedId(deal.id)
+      topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } catch (e) {
+      showToast('Could not load deal — data may be corrupted.', 'error')
+      console.error(e)
+    }
   }
 
-  const r = result
+  const r      = result
   const cfGoal = +r?._form?.cashFlowGoal || 500
 
   return (
     <div className="min-h-screen bg-gray-950">
       <div ref={topRef} />
+      <Toast toast={toast} />
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-gray-800/80 bg-gray-950/95 backdrop-blur-md">
@@ -281,12 +374,8 @@ export default function App() {
               className="h-16 sm:h-20 w-auto object-contain transition-opacity duration-200 group-hover:opacity-85"
             />
           </a>
-
           <div className="h-8 w-px bg-gray-700/60 hidden sm:block" />
-          <p className="text-gray-500 text-xs hidden sm:block leading-relaxed">
-            Rental Deal<br />Calculator
-          </p>
-
+          <p className="text-gray-500 text-xs hidden sm:block leading-relaxed">Rental Deal<br />Calculator</p>
           {deals.length > 0 && (
             <div className="ml-auto">
               <span className="bg-gray-800 text-gray-400 text-xs px-2.5 py-1 rounded-full border border-gray-700">
@@ -309,7 +398,6 @@ export default function App() {
               <p className="text-gray-500 text-sm mt-0.5">Enter the deal parameters below</p>
             </div>
 
-            {/* Property Info */}
             <section className="bg-gray-900/60 rounded-2xl p-5 border border-gray-800 space-y-4">
               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Property Info</p>
               <div className="grid grid-cols-2 gap-4">
@@ -320,29 +408,28 @@ export default function App() {
                   tooltip="The purchase price of the property you're analyzing." />
                 <Field label="Monthly Rent" name="monthlyRent" value={form.monthlyRent} onChange={onChange}
                   placeholder="1,200" pre="$" required
-                  tooltip="The monthly rent you'll receive. With Section 8, the housing authority pays a guaranteed portion directly — making this very reliable even if the tenant can't pay their portion." />
+                  tooltip="The monthly rent you'll receive. With Section 8, the housing authority pays a guaranteed portion directly — very reliable even if the tenant can't pay their portion." />
                 <Field label="Property Taxes / mo" name="propertyTaxes" value={form.propertyTaxes} onChange={onChange}
                   placeholder="200" pre="$"
-                  tooltip="Your monthly property tax cost. Divide your annual tax bill by 12. You can find this on the county assessor's website or ask the seller for a recent tax statement." />
+                  tooltip="Your monthly property tax cost. Divide your annual tax bill by 12. Find it on the county assessor's website or ask the seller for a recent tax statement." />
                 <Field label="Insurance / mo" name="insurance" value={form.insurance} onChange={onChange}
                   placeholder="100" pre="$"
-                  tooltip="Monthly landlord insurance cost. Divide your annual premium by 12. Annual landlord insurance typically runs $800–$2,000/year depending on location and property value." />
+                  tooltip="Monthly landlord insurance cost. Divide your annual premium by 12. Annual landlord insurance typically runs $800–$2,000/year." />
                 <Field label="Est. Repair Costs" name="repairCosts" value={form.repairCosts} onChange={onChange}
                   placeholder="5,000" pre="$"
-                  tooltip="One-time upfront cost to repair or rehab the property before renting. This is factored into your Total Upfront Capital and cash-on-cash return — it does not affect monthly cash flow." />
+                  tooltip="One-time upfront cost to repair or rehab before renting. Factored into Total Upfront Capital and cash-on-cash return — does not affect monthly cash flow." />
                 <Field label="Maintenance %" name="maintenancePct" value={form.maintenancePct} onChange={onChange}
                   placeholder="5" suf="%"
-                  tooltip="An ongoing budget for repairs and upkeep, as a percentage of annual gross rent. 5% is a common starting point — use 8–10% for older homes. Covers plumbing, appliances, and general wear and tear." />
+                  tooltip="Ongoing budget for repairs as a % of annual gross rent. 5% is a common starting point — use 8–10% for older homes. Covers plumbing, appliances, general wear and tear." />
                 <Field label="Vacancy %" name="vacancyPct" value={form.vacancyPct} onChange={onChange}
                   placeholder="1" suf="%"
-                  tooltip="The percentage of the year your property might sit empty. Section 8 tenants tend to stay much longer than market-rate tenants, so 1% is realistic — roughly 3–4 days per year." />
+                  tooltip="% of the year your property might sit empty. Section 8 tenants tend to stay much longer, so 1% is realistic — roughly 3–4 days per year." />
                 <Field label="Cash Flow Goal / mo" name="cashFlowGoal" value={form.cashFlowGoal} onChange={onChange}
                   placeholder="500" pre="$" span2
-                  tooltip="Your personal monthly profit target. The monthly cash flow card turns green when you hit this number. Note: the deal score (Good/Fair/Poor) uses fixed thresholds — Good = $450+/mo, Fair = $250–449/mo, Poor = under $250/mo." />
+                  tooltip="Your personal monthly profit target. The cash flow card turns green when you hit this number. The deal score uses fixed thresholds: Good = $450+/mo, Fair = $250–449/mo, Poor = under $250/mo." />
               </div>
             </section>
 
-            {/* Financing */}
             <section className="bg-gray-900/60 rounded-2xl p-5 border border-gray-800 space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Financing</p>
@@ -351,16 +438,16 @@ export default function App() {
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Down Payment %" name="downPaymentPct" value={form.downPaymentPct} onChange={onChange}
                   placeholder="20" suf="%"
-                  tooltip="The percentage of the purchase price you pay upfront in cash. The rest is financed with a mortgage. A higher down payment lowers monthly payments but ties up more of your cash." />
+                  tooltip="% of the purchase price you pay upfront. The rest is financed. Higher down payment = lower monthly payments but more cash tied up." />
                 <Field label="Interest Rate" name="interestRate" value={form.interestRate} onChange={onChange}
                   placeholder="7.0" suf="%"
-                  tooltip="The annual interest rate on your mortgage. Even a 0.5% difference meaningfully changes your monthly payment. Investor loan rates are typically 0.5–1% higher than primary residence rates." />
+                  tooltip="Annual mortgage interest rate. Investor loan rates are typically 0.5–1% higher than primary residence rates." />
                 <Field label="Loan Term" name="loanTerm" value={form.loanTerm} onChange={onChange}
                   placeholder="30" suf="yr"
-                  tooltip="How many years to pay off the mortgage. A 30-year loan gives lower monthly payments; a 15-year loan builds equity faster but costs more per month." />
+                  tooltip="Years to pay off the mortgage. 30-year = lower monthly payments; 15-year = faster equity but higher monthly cost." />
                 <Field label="Closing Costs %" name="closingCostsPct" value={form.closingCostsPct} onChange={onChange}
                   placeholder="3" suf="%"
-                  tooltip="Fees paid at closing — typically 2–5% of the purchase price for investment properties. Includes lender fees, title insurance, attorney fees, and prepaid items. Factored into your Total Upfront Capital." />
+                  tooltip="Fees at closing — typically 2–5% for investment properties. Includes lender fees, title insurance, attorney fees, and prepaid items." />
               </div>
             </section>
 
@@ -385,12 +472,10 @@ export default function App() {
 
             {r ? (
               <div className="space-y-4">
-                {/* Score badge */}
                 <div className="grid grid-cols-2">
                   <ScoreBadge monthlyCF={r.monthlyCF} />
                 </div>
 
-                {/* Metric cards */}
                 <div className="grid grid-cols-2 gap-3">
                   <MetricCard
                     label="Monthly Cash Flow"
@@ -404,27 +489,27 @@ export default function App() {
                     value={fmtPct(r.capRate)}
                     sub="NOI ÷ purchase price"
                     color={r.capRate >= 8 ? 'text-green-400' : r.capRate >= 5 ? 'text-yellow-400' : 'text-red-400'}
-                    tooltip="Capitalization Rate — your annual return assuming an all-cash purchase with no mortgage. Calculated as Net Operating Income ÷ Purchase Price. Most investors target 6–10%. Great for comparing properties regardless of financing."
+                    tooltip="Your annual return assuming an all-cash purchase. Calculated as Net Operating Income ÷ Purchase Price. Most investors target 6–10%."
                   />
                   <MetricCard
                     label="Cash-on-Cash Return"
                     value={fmtPct(r.coc)}
                     sub={`${fmt$(r.totalUpfront)} total invested`}
                     color={r.coc >= 8 ? 'text-green-400' : r.coc >= 5 ? 'text-yellow-400' : 'text-red-400'}
-                    tooltip="How much cash you earn back annually on all the cash you put in (down payment + closing costs + repairs). Example: put in $40,000, earn $3,200/year = 8% CoC. One of the most important metrics for real investors."
+                    tooltip="Annual cash earned ÷ all cash you put in (down payment + closing costs + repairs). One of the most important metrics for real investors."
                   />
                   <MetricCard
                     label="Net Operating Income"
                     value={`${fmt$(r.noi / 12)}/mo`}
                     sub={`${fmt$(r.noi)}/yr`}
-                    tooltip="Your income after all operating expenses (taxes, insurance, maintenance, vacancy) but BEFORE your mortgage payment. Shows how profitable the property itself is, regardless of how you financed it."
+                    tooltip="Income after all operating expenses but BEFORE your mortgage. Shows how profitable the property itself is, regardless of financing."
                   />
                 </div>
 
                 {/* Total Upfront Capital */}
                 <div className="bg-sky-950/40 border-2 border-sky-800/60 rounded-xl p-4">
                   <p className="text-[10px] font-bold text-sky-400/70 uppercase tracking-widest mb-2">
-                    <Tooltip text="The total cash you need to close this deal and get it rent-ready. Includes your down payment, all closing costs, and estimated repairs. This is the number to have in your account before moving forward.">
+                    <Tooltip text="Total cash needed to close and get rent-ready: down payment + closing costs + repairs. This is the number to have in your account before moving forward.">
                       Total Upfront Capital Needed
                     </Tooltip>
                   </p>
@@ -440,10 +525,10 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Income & Expense Breakdown */}
+                {/* Breakdown */}
                 <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 overflow-hidden">
                   <div className="px-4 py-2.5 border-b border-gray-700/50 flex items-center justify-between">
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Income & Expense Breakdown</p>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Income &amp; Expense Breakdown</p>
                     <p className="text-[10px] text-gray-600">per month unless noted</p>
                   </div>
                   <table className="w-full text-sm">
@@ -458,7 +543,7 @@ export default function App() {
                       </tr>
                       <tr>
                         <td className="px-4 py-2 text-gray-400">
-                          <Tooltip text="Your expected rent after accounting for vacancy loss — the realistic income used for all further calculations.">
+                          <Tooltip text="Expected rent after vacancy — the realistic monthly income used for all further calculations.">
                             Effective Gross Income
                           </Tooltip>
                         </td>
@@ -478,13 +563,12 @@ export default function App() {
                       </tr>
                       <tr>
                         <td className="px-4 py-2 text-gray-400">
-                          <Tooltip text="Income after all operating costs but before your mortgage — a key metric for comparing deals regardless of financing.">
+                          <Tooltip text="Income after all operating costs but before your mortgage — key for comparing deals regardless of financing.">
                             Net Operating Income
                           </Tooltip>
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums text-white font-semibold">{fmt$(r.noi / 12)} /month</td>
                       </tr>
-
                       {r.annualDebt > 0 && (
                         <tr>
                           <td colSpan={2} className="px-4 pt-3 pb-1">
@@ -496,7 +580,7 @@ export default function App() {
                       {r.annualDebt > 0 && (
                         <tr>
                           <td className="px-4 py-2 text-gray-400">
-                            <Tooltip text="Your total yearly mortgage payments (principal + interest). Subtracted from NOI to get actual annual cash flow.">
+                            <Tooltip text="Total yearly mortgage payments (principal + interest). Subtracted from NOI to get actual annual cash flow.">
                               Annual Debt Service
                             </Tooltip>
                           </td>
@@ -513,7 +597,6 @@ export default function App() {
                   </table>
                 </div>
 
-                {/* Mortgage callout */}
                 {r.mtgMonthly > 0 && (
                   <div className="bg-gray-800/40 rounded-xl border border-gray-700/40 px-4 py-3 flex items-center justify-between text-sm">
                     <span className="text-gray-400">Monthly Mortgage Payment</span>
@@ -521,7 +604,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Save */}
                 <button
                   onClick={onSave}
                   disabled={saved}
@@ -581,7 +663,8 @@ export default function App() {
                   </thead>
                   <tbody>
                     {deals.map(d => (
-                      <React.Fragment key={d.id}>
+                      // Fragment requires explicit import — NOT React.Fragment
+                      <Fragment key={d.id}>
                         <tr
                           className={`border-b border-gray-800/60 transition-colors group cursor-pointer
                             ${loadedId === d.id ? 'bg-sky-950/30' : 'hover:bg-gray-800/30'}`}
@@ -656,15 +739,20 @@ export default function App() {
                             </td>
                           </tr>
                         )}
-                      </React.Fragment>
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
 
+            {/* Browser-only storage notice */}
+            <p className="text-gray-600 text-xs text-center mt-3">
+              🔒 Your deals are saved in your browser only — they won&apos;t sync across devices.
+            </p>
+
             {loadedId && (
-              <p className="text-xs text-sky-500 mt-2 text-center">
+              <p className="text-xs text-sky-500 mt-1.5 text-center">
                 Deal loaded — scroll up to review or adjust numbers and re-analyze
               </p>
             )}
@@ -674,11 +762,7 @@ export default function App() {
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         <footer className="border-t border-gray-800/60 pt-8 pb-4">
           <div className="flex flex-col items-center gap-3 text-center">
-            <img
-              src="/logo.png"
-              alt="Success with Section 8"
-              className="h-10 w-auto object-contain opacity-60"
-            />
+            <img src="/logo.png" alt="Success with Section 8" className="h-10 w-auto object-contain opacity-60" />
             <p className="text-gray-500 text-sm font-medium">Built for Success with Section 8</p>
             <p className="text-gray-700 text-xs">Estimates only — not financial advice</p>
           </div>
@@ -686,5 +770,14 @@ export default function App() {
 
       </main>
     </div>
+  )
+}
+
+/* ── Default export wraps AppInner in ErrorBoundary ──────────────────────── */
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppInner />
+    </ErrorBoundary>
   )
 }
