@@ -102,13 +102,16 @@ const calcMtg = (principal, annualRatePct, termYears) => {
   return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
 }
 
+/* ── Strip commas from currency strings before parsing ───────────────────── */
+const parseCurrency = (s) => +(String(s || '').replace(/,/g, '')) || 0
+
 /* ── Core analysis ───────────────────────────────────────────────────────── */
 const analyze = (f) => {
-  const price          = +f.askingPrice     || 0
-  const rent           = +f.monthlyRent     || 0
-  const taxesMonthly   = +f.propertyTaxes   || 0
-  const insMonthly     = +f.insurance       || 0
-  const repairCosts    = +f.repairCosts     || 0
+  const price          = parseCurrency(f.askingPrice)
+  const rent           = parseCurrency(f.monthlyRent)
+  const taxesMonthly   = parseCurrency(f.propertyTaxes)
+  const insMonthly     = parseCurrency(f.insurance)
+  const repairCosts    = parseCurrency(f.repairCosts)
   const maintPct       = +f.maintenancePct  || 0
   const vacPct         = +f.vacancyPct      || 0
   const dpPct          = Math.min(100, Math.max(0, +f.downPaymentPct  || 100))
@@ -133,12 +136,13 @@ const analyze = (f) => {
   const annualCF     = noi - annualDebt
   const monthlyCF    = annualCF / 12
   const coc          = totalUpfront > 0 ? (annualCF / totalUpfront) * 100 : 0
+  const pitiMonthly  = mtgMonthly + taxesMonthly + insMonthly
 
   return {
     annualRent, vacancyLoss, egi,
     taxesMonthly, insMonthly, maintenance, opex, noi,
     capRate, downPayment, closingCosts, repairCosts, loanAmount,
-    mtgMonthly, annualDebt, totalUpfront, annualCF, monthlyCF, coc,
+    mtgMonthly, annualDebt, totalUpfront, annualCF, monthlyCF, coc, pitiMonthly,
   }
 }
 
@@ -174,7 +178,7 @@ function Tooltip({ text, children }) {
 }
 
 /* ── Field ───────────────────────────────────────────────────────────────── */
-function Field({ label, name, value, onChange, placeholder, pre, suf, isText, required, span2, tooltip }) {
+function Field({ label, name, value, onChange, placeholder, pre, suf, isText, isCurrency, required, span2, tooltip }) {
   return (
     <div className={span2 ? 'col-span-2' : ''}>
       <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
@@ -188,13 +192,14 @@ function Field({ label, name, value, onChange, placeholder, pre, suf, isText, re
           </span>
         )}
         <input
-          type={isText ? 'text' : 'number'}
+          type={isText || isCurrency ? 'text' : 'number'}
+          inputMode={isCurrency ? 'decimal' : undefined}
           name={name}
           value={value}
           onChange={onChange}
           placeholder={placeholder || '0'}
-          step="any"
-          min="0"
+          step={isCurrency ? undefined : 'any'}
+          min={isCurrency ? undefined : '0'}
           autoComplete="off"
           className={[
             'w-full bg-gray-900 border border-gray-700/80 rounded-lg py-2.5 text-sm text-white placeholder-gray-600',
@@ -313,8 +318,8 @@ function AppInner() {
         id:           Date.now(),
         date:         new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
         address:      result._form.address || 'Unnamed Property',
-        askingPrice:  +result._form.askingPrice,
-        monthlyRent:  +result._form.monthlyRent,
+        askingPrice:  parseCurrency(result._form.askingPrice),
+        monthlyRent:  parseCurrency(result._form.monthlyRent),
         capRate:      result.capRate,
         monthlyCF:    result.monthlyCF,
         coc:          result.coc,
@@ -357,7 +362,7 @@ function AppInner() {
   }
 
   const r      = result
-  const cfGoal = +r?._form?.cashFlowGoal || 500
+  const cfGoal = parseCurrency(r?._form?.cashFlowGoal) || 500
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -371,11 +376,9 @@ function AppInner() {
             <img
               src="/logo.png"
               alt="Success with Section 8"
-              className="h-16 sm:h-20 w-auto object-contain transition-opacity duration-200 group-hover:opacity-85"
+              className="h-20 sm:h-24 w-auto object-contain transition-opacity duration-200 group-hover:opacity-85"
             />
           </a>
-          <div className="h-8 w-px bg-gray-700/60 hidden sm:block" />
-          <p className="text-gray-500 text-xs hidden sm:block leading-relaxed">Rental Deal<br />Calculator</p>
           {deals.length > 0 && (
             <div className="ml-auto">
               <span className="bg-gray-800 text-gray-400 text-xs px-2.5 py-1 rounded-full border border-gray-700">
@@ -404,19 +407,19 @@ function AppInner() {
                 <Field label="Property Address" name="address" value={form.address} onChange={onChange}
                   placeholder="123 Main St, City, ST" isText span2 />
                 <Field label="Asking Price" name="askingPrice" value={form.askingPrice} onChange={onChange}
-                  placeholder="150,000" pre="$" required
+                  placeholder="150,000" pre="$" isCurrency required
                   tooltip="The purchase price of the property you're analyzing." />
                 <Field label="Monthly Rent" name="monthlyRent" value={form.monthlyRent} onChange={onChange}
-                  placeholder="1,200" pre="$" required
+                  placeholder="1,200" pre="$" isCurrency required
                   tooltip="The monthly rent you'll receive. With Section 8, the housing authority pays a guaranteed portion directly — very reliable even if the tenant can't pay their portion." />
                 <Field label="Property Taxes / mo" name="propertyTaxes" value={form.propertyTaxes} onChange={onChange}
-                  placeholder="200" pre="$"
+                  placeholder="200" pre="$" isCurrency
                   tooltip="Your monthly property tax cost. Divide your annual tax bill by 12. Find it on the county assessor's website or ask the seller for a recent tax statement." />
                 <Field label="Insurance / mo" name="insurance" value={form.insurance} onChange={onChange}
-                  placeholder="100" pre="$"
+                  placeholder="100" pre="$" isCurrency
                   tooltip="Monthly landlord insurance cost. Divide your annual premium by 12. Annual landlord insurance typically runs $800–$2,000/year." />
                 <Field label="Est. Repair Costs" name="repairCosts" value={form.repairCosts} onChange={onChange}
-                  placeholder="5,000" pre="$"
+                  placeholder="5,000" pre="$" isCurrency
                   tooltip="One-time upfront cost to repair or rehab before renting. Factored into Total Upfront Capital and cash-on-cash return — does not affect monthly cash flow." />
                 <Field label="Maintenance %" name="maintenancePct" value={form.maintenancePct} onChange={onChange}
                   placeholder="5" suf="%"
@@ -425,7 +428,7 @@ function AppInner() {
                   placeholder="1" suf="%"
                   tooltip="% of the year your property might sit empty. Section 8 tenants tend to stay much longer, so 1% is realistic — roughly 3–4 days per year." />
                 <Field label="Cash Flow Goal / mo" name="cashFlowGoal" value={form.cashFlowGoal} onChange={onChange}
-                  placeholder="500" pre="$" span2
+                  placeholder="500" pre="$" isCurrency span2
                   tooltip="Your personal monthly profit target. The cash flow card turns green when you hit this number. The deal score uses fixed thresholds: Good = $450+/mo, Fair = $250–449/mo, Poor = under $250/mo." />
               </div>
             </section>
@@ -539,7 +542,7 @@ function AppInner() {
                       </tr>
                       <tr>
                         <td className="px-4 py-2 text-gray-400">Vacancy Loss</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-red-400">− {fmt$(r.vacancyLoss / 12)} /month</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.vacancyLoss / 12)} /month</td>
                       </tr>
                       <tr>
                         <td className="px-4 py-2 text-gray-400">
@@ -551,15 +554,15 @@ function AppInner() {
                       </tr>
                       <tr>
                         <td className="px-4 py-2 text-gray-400">Property Taxes</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-red-400">− {fmt$(r.taxesMonthly)} /month</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.taxesMonthly)} /month</td>
                       </tr>
                       <tr>
                         <td className="px-4 py-2 text-gray-400">Insurance</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-red-400">− {fmt$(r.insMonthly)} /month</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.insMonthly)} /month</td>
                       </tr>
                       <tr>
                         <td className="px-4 py-2 text-gray-400">Maintenance</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-red-400">− {fmt$(r.maintenance / 12)} /month</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.maintenance / 12)} /month</td>
                       </tr>
                       <tr>
                         <td className="px-4 py-2 text-gray-400">
@@ -584,7 +587,17 @@ function AppInner() {
                               Annual Debt Service
                             </Tooltip>
                           </td>
-                          <td className="px-4 py-2 text-right tabular-nums text-red-400">− {fmt$(r.annualDebt)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.annualDebt)}</td>
+                        </tr>
+                      )}
+                      {r.annualDebt > 0 && r.pitiMonthly > 0 && (
+                        <tr>
+                          <td className="px-4 py-2 text-gray-400">
+                            <Tooltip text="Principal + Interest + Taxes + Insurance — your total monthly housing cost used by lenders to qualify financing.">
+                              PITI
+                            </Tooltip>
+                          </td>
+                          <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.pitiMonthly)} /month</td>
                         </tr>
                       )}
                       <tr className="bg-gray-700/10">
