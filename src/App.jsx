@@ -17,11 +17,11 @@ function saveDeals(deals) {
     localStorage.setItem('s8deals', JSON.stringify(deals))
     return true
   } catch {
-    return false  // storage full or unavailable (private browsing, etc.)
+    return false
   }
 }
 
-/* ── Error Boundary — catches render crashes, shows recovery UI ─────────── */
+/* ── Error Boundary ──────────────────────────────────────────────────────── */
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
@@ -40,14 +40,14 @@ class ErrorBoundary extends Component {
   render() {
     if (!this.state.crashed) return this.props.children
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-8 text-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-8 text-center">
         <div className="max-w-sm">
-          <div className="w-12 h-12 rounded-full bg-red-950 border border-red-800 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950 border border-red-300 dark:border-red-800 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
             </svg>
           </div>
-          <p className="text-white font-bold text-lg mb-1">Something went wrong</p>
+          <p className="text-gray-900 dark:text-white font-bold text-lg mb-1">Something went wrong</p>
           <p className="text-gray-500 text-sm mb-6">{this.state.message}</p>
           <button
             onClick={this.handleReset}
@@ -55,7 +55,7 @@ class ErrorBoundary extends Component {
           >
             Clear data &amp; reload
           </button>
-          <p className="text-gray-700 text-xs mt-3">This will clear your saved deals.</p>
+          <p className="text-gray-400 dark:text-gray-700 text-xs mt-3">This will clear your saved deals.</p>
         </div>
       </div>
     )
@@ -68,15 +68,17 @@ function Toast({ toast }) {
   const isSuccess = toast.type !== 'error'
   return (
     <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-medium pointer-events-none
-      ${isSuccess ? 'bg-green-900/95 border border-green-700 text-green-200' : 'bg-red-900/95 border border-red-700 text-red-200'}`}
+      ${isSuccess
+        ? 'bg-green-100/95 dark:bg-green-900/95 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-200'
+        : 'bg-red-100/95 dark:bg-red-900/95 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-200'}`}
       style={{ backdropFilter: 'blur(8px)' }}
     >
       {isSuccess ? (
-        <svg className="w-4 h-4 flex-shrink-0 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <svg className="w-4 h-4 flex-shrink-0 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
         </svg>
       ) : (
-        <svg className="w-4 h-4 flex-shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <svg className="w-4 h-4 flex-shrink-0 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
         </svg>
       )}
@@ -150,11 +152,10 @@ const analyze = (f) => {
 }
 
 /* ── Score — fixed thresholds ────────────────────────────────────────────── */
-// These full class strings must stay as literals so Tailwind includes them in the bundle.
 const getScore = (monthlyCF) => {
-  if (monthlyCF >= 450) return { label: 'Good', cls: 'bg-green-900/50 text-green-400 ring-1 ring-green-600'    }
-  if (monthlyCF >= 250) return { label: 'Fair', cls: 'bg-yellow-900/50 text-yellow-400 ring-1 ring-yellow-600'  }
-  return                       { label: 'Poor', cls: 'bg-red-900/50 text-red-400 ring-1 ring-red-600'           }
+  if (monthlyCF >= 450) return { label: 'Good', cls: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-400 ring-1 ring-green-400 dark:ring-green-600' }
+  if (monthlyCF >= 250) return { label: 'Fair', cls: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400 ring-1 ring-yellow-400 dark:ring-yellow-600' }
+  return                       { label: 'Poor', cls: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-400 ring-1 ring-red-400 dark:ring-red-600' }
 }
 
 /* ── Tooltip ─────────────────────────────────────────────────────────────── */
@@ -167,11 +168,11 @@ function Tooltip({ text, children }) {
       onMouseLeave={() => setVisible(false)}
     >
       {children}
-      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-gray-700 hover:bg-gray-600 text-[9px] font-bold text-gray-400 cursor-help flex-shrink-0 select-none transition-colors">
+      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-[9px] font-bold text-gray-500 dark:text-gray-400 cursor-help flex-shrink-0 select-none transition-colors">
         ?
       </span>
       {visible && (
-        <span className="absolute z-50 bottom-full left-0 mb-2.5 w-64 bg-gray-800 border border-gray-600/80 rounded-xl p-3 text-xs text-gray-300 leading-relaxed shadow-2xl pointer-events-none normal-case font-normal tracking-normal whitespace-normal">
+        <span className="absolute z-50 bottom-full left-0 mb-2.5 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600/80 rounded-xl p-3 text-xs text-gray-600 dark:text-gray-300 leading-relaxed shadow-2xl pointer-events-none normal-case font-normal tracking-normal whitespace-normal">
           {text}
           <span className="tooltip-arrow" />
         </span>
@@ -192,13 +193,13 @@ function Field({ label, name, value, onChange, placeholder, pre, suf, isText, is
   }
   return (
     <div className={span2 ? 'col-span-2' : ''}>
-      <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+      <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5">
         {tooltip ? <Tooltip text={tooltip}>{label}</Tooltip> : label}
-        {required && <span className="text-sky-400 ml-0.5">*</span>}
+        {required && <span className="text-sky-500 ml-0.5">*</span>}
       </label>
       <div className="relative">
         {pre && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none select-none">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-sm pointer-events-none select-none">
             {pre}
           </span>
         )}
@@ -213,14 +214,14 @@ function Field({ label, name, value, onChange, placeholder, pre, suf, isText, is
           min={isCurrency ? undefined : '0'}
           autoComplete="off"
           className={[
-            'w-full bg-gray-900 border border-gray-700/80 rounded-lg py-2.5 text-sm text-white placeholder-gray-600',
+            'w-full bg-gray-50 dark:bg-gray-900 border border-gray-300/80 dark:border-gray-700/80 rounded-lg py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600',
             'focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all duration-150',
             pre ? 'pl-7' : 'pl-3',
             suf ? 'pr-10' : 'pr-3',
           ].join(' ')}
         />
         {suf && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none select-none">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-sm pointer-events-none select-none">
             {suf}
           </span>
         )}
@@ -232,11 +233,11 @@ function Field({ label, name, value, onChange, placeholder, pre, suf, isText, is
 /* ── MetricCard ──────────────────────────────────────────────────────────── */
 function MetricCard({ label, value, sub, color, tooltip, accent }) {
   return (
-    <div className={`rounded-xl p-4 border ${accent ? 'bg-sky-950/40 border-sky-800/60' : 'bg-gray-800/70 border-gray-700/50'}`}>
+    <div className={`rounded-xl p-4 border card-3d ${accent ? 'bg-sky-50/80 dark:bg-sky-950/40 border-sky-200/60 dark:border-sky-800/60' : 'bg-gray-100/70 dark:bg-gray-800/70 border-gray-200/80 dark:border-gray-700/50'}`}>
       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
         {tooltip ? <Tooltip text={tooltip}>{label}</Tooltip> : label}
       </p>
-      <p className={`text-2xl font-bold leading-none ${color || 'text-white'}`}>{value}</p>
+      <p className={`text-2xl font-bold leading-none ${color || 'text-gray-900 dark:text-white'}`}>{value}</p>
       {sub && <p className="text-gray-500 text-xs mt-1.5">{sub}</p>}
     </div>
   )
@@ -248,18 +249,18 @@ function ScoreBadge({ monthlyCF }) {
   const fair = !good && monthlyCF >= 250
 
   const cfg = good
-    ? { label: 'GOOD DEAL', desc: "Great numbers — you're in solid profit territory.",      ring: 'ring-green-500',  bg: 'bg-green-950/70',  text: 'text-green-300',  dot: 'bg-green-400'  }
+    ? { label: 'GOOD DEAL', desc: "Great numbers — you're in solid profit territory.",  ring: 'ring-green-500',  bg: 'bg-green-50/90 dark:bg-green-950/70',   text: 'text-green-700 dark:text-green-300',   dot: 'bg-green-400'  }
     : fair
-    ? { label: 'FAIR DEAL', desc: 'It works! You might even be able to find better.',            ring: 'ring-yellow-500', bg: 'bg-yellow-950/70', text: 'text-yellow-300', dot: 'bg-yellow-400' }
-    : { label: 'POOR DEAL', desc: 'Better opportunities are out there — keep looking.',     ring: 'ring-red-500',    bg: 'bg-red-950/70',    text: 'text-red-300',    dot: 'bg-red-400'    }
+    ? { label: 'FAIR DEAL', desc: 'It works! You might even be able to find better.',        ring: 'ring-yellow-500', bg: 'bg-yellow-50/90 dark:bg-yellow-950/70', text: 'text-yellow-700 dark:text-yellow-300', dot: 'bg-yellow-400' }
+    : { label: 'POOR DEAL', desc: 'Better opportunities are out there — keep looking.', ring: 'ring-red-500',    bg: 'bg-red-50/90 dark:bg-red-950/70',       text: 'text-red-700 dark:text-red-300',       dot: 'bg-red-400'    }
 
   return (
-    <div className={`rounded-2xl ring-2 ${cfg.ring} ${cfg.bg} p-5 col-span-2 flex items-center justify-between gap-4`}>
+    <div className={`rounded-2xl ring-2 ${cfg.ring} ${cfg.bg} p-5 col-span-2 flex items-center justify-between gap-4 card-3d`}>
       <div>
         <p className={`text-3xl font-black tracking-widest ${cfg.text}`}>{cfg.label}</p>
-        <p className="text-gray-400 text-sm mt-0.5">{cfg.desc}</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">{cfg.desc}</p>
       </div>
-      <div className={`w-5 h-5 rounded-full ${cfg.dot} shadow-lg flex-shrink-0 ring-4 ring-black/20`} />
+      <div className={`w-5 h-5 rounded-full ${cfg.dot} shadow-lg flex-shrink-0 ring-4 ring-black/10 dark:ring-black/20`} />
     </div>
   )
 }
@@ -286,7 +287,6 @@ function AppInner() {
 
   const [deals, setDeals] = useState(loadDeals)
 
-  // Persist deals whenever they change
   useEffect(() => {
     const ok = saveDeals(deals)
     if (!ok && deals.length > 0) {
@@ -375,12 +375,12 @@ function AppInner() {
   const r = result
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div ref={topRef} />
       <Toast toast={toast} />
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 border-b border-gray-800/80 bg-gray-950/95 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-gray-200/80 dark:border-gray-800/80 bg-white/95 dark:bg-gray-950/95 backdrop-blur-md shadow-sm dark:shadow-none">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-24 flex items-center gap-5">
           <a href="/" className="flex items-center flex-shrink-0 group" title="Success with Section 8 Analyzer">
             <img
@@ -391,7 +391,7 @@ function AppInner() {
           </a>
           {deals.length > 0 && (
             <div className="ml-auto">
-              <span className="bg-gray-800 text-gray-400 text-xs px-2.5 py-1 rounded-full border border-gray-700">
+              <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs px-2.5 py-1 rounded-full border border-gray-300 dark:border-gray-700">
                 {deals.length} deal{deals.length !== 1 ? 's' : ''} saved
               </span>
             </div>
@@ -407,12 +407,12 @@ function AppInner() {
           {/* LEFT — Form */}
           <div className="space-y-5">
             <div>
-              <h2 className="text-xl font-bold text-white">Property Details</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Property Details</h2>
               <p className="text-gray-500 text-sm mt-0.5">Enter the deal parameters below</p>
             </div>
 
-            <section className="bg-gray-900/60 rounded-2xl p-5 border border-gray-800 space-y-4">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Property Info</p>
+            <section className="bg-white dark:bg-gray-900/60 rounded-2xl p-5 border border-gray-200 dark:border-gray-800 space-y-4 card-3d">
+              <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Property Info</p>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Property Address" name="address" value={form.address} onChange={onChange}
                   placeholder="123 Main St, City, ST" isText span2 />
@@ -443,10 +443,10 @@ function AppInner() {
               </div>
             </section>
 
-            <section className="bg-gray-900/60 rounded-2xl p-5 border border-gray-800 space-y-4">
+            <section className="bg-white dark:bg-gray-900/60 rounded-2xl p-5 border border-gray-200 dark:border-gray-800 space-y-4 card-3d">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Financing</p>
-                <span className="text-[11px] text-gray-600">100% down = all-cash</span>
+                <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Financing</p>
+                <span className="text-[11px] text-gray-400 dark:text-gray-600">100% down = all-cash</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Down Payment %" name="downPaymentPct" value={form.downPaymentPct} onChange={onChange}
@@ -465,12 +465,12 @@ function AppInner() {
             </section>
 
             {err && (
-              <p className="text-red-400 text-sm bg-red-950/60 border border-red-800/60 rounded-xl px-4 py-3">{err}</p>
+              <p className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800/60 rounded-xl px-4 py-3">{err}</p>
             )}
 
             <button
               onClick={onAnalyze}
-              className="w-full bg-sky-500 hover:bg-sky-400 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl transition-all text-[15px] tracking-wide shadow-xl shadow-sky-900/30"
+              className="w-full bg-sky-500 hover:bg-sky-400 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl text-[15px] tracking-wide btn-3d"
             >
               Analyze Deal
             </button>
@@ -479,7 +479,7 @@ function AppInner() {
           {/* RIGHT — Results */}
           <div className="space-y-5">
             <div>
-              <h2 className="text-xl font-bold text-white">Analysis Results</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Analysis Results</h2>
               <p className="text-gray-500 text-sm mt-0.5">Key metrics and deal score</p>
             </div>
 
@@ -494,124 +494,124 @@ function AppInner() {
                     label="Monthly Cash Flow"
                     value={fmt$(r.monthlyCF)}
                     sub="after all expenses & debt"
-                    color={r.monthlyCF >= 450 ? 'text-green-400' : r.monthlyCF >= 250 ? 'text-yellow-400' : 'text-red-400'}
+                    color={r.monthlyCF >= 450 ? 'text-green-600 dark:text-green-400' : r.monthlyCF >= 250 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}
                     tooltip="Money left in your pocket each month after every expense and mortgage payment."
                   />
                   <MetricCard
                     label="Cap Rate"
                     value={fmtPct(r.capRate)}
                     sub="NOI ÷ purchase price"
-                    color={r.capRate >= 8 ? 'text-green-400' : r.capRate >= 5 ? 'text-yellow-400' : 'text-red-400'}
+                    color={r.capRate >= 8 ? 'text-green-600 dark:text-green-400' : r.capRate >= 5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}
                     tooltip="Your annual return assuming an all-cash purchase. Calculated as Net Operating Income ÷ Purchase Price. Most investors target 6–10%."
                   />
                   <MetricCard
                     label="Cash-on-Cash Return"
                     value={fmtPct(r.coc)}
                     sub={`${fmt$(r.totalUpfront)} total invested`}
-                    color={r.coc >= 8 ? 'text-green-400' : r.coc >= 5 ? 'text-yellow-400' : 'text-red-400'}
+                    color={r.coc >= 8 ? 'text-green-600 dark:text-green-400' : r.coc >= 5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}
                     tooltip="Annual cash earned ÷ all cash you put in (down payment + closing costs + repairs). One of the most important metrics for real investors."
                   />
                   <MetricCard
                     label="DSCR"
                     value={r.dscr !== null ? r.dscr.toFixed(2) : 'N/A'}
                     sub={r.dscr !== null ? 'NOI ÷ annual debt service' : 'all-cash purchase'}
-                    color={r.dscr === null ? 'text-gray-400' : r.dscr >= 1 ? 'text-green-400' : 'text-red-400'}
+                    color={r.dscr === null ? 'text-gray-400' : r.dscr >= 1 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
                     tooltip="Debt Service Coverage Ratio — how many times your NOI covers the mortgage. Above 1.0 means income covers debt; most lenders typically require 1.0+."
                   />
                 </div>
 
                 {/* Total Upfront Capital */}
-                <div className="bg-sky-950/40 border-2 border-sky-800/60 rounded-xl p-4">
-                  <p className="text-[10px] font-bold text-sky-400/70 uppercase tracking-widest mb-2">
+                <div className="bg-sky-50/80 dark:bg-sky-950/40 border-2 border-sky-200/60 dark:border-sky-800/60 rounded-xl p-4 card-3d">
+                  <p className="text-[10px] font-bold text-sky-600/80 dark:text-sky-400/70 uppercase tracking-widest mb-2">
                     <Tooltip text="Total cash needed to close and get rent-ready: down payment + closing costs + repairs. This is the number to have in your account before moving forward.">
                       Total Upfront Capital Needed
                     </Tooltip>
                   </p>
                   <div className="flex items-end justify-between flex-wrap gap-3">
-                    <p className="text-3xl font-black text-white">{fmt$(r.totalUpfront)}</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-                      <span>Down payment <span className="text-white font-semibold">{fmt$(r.downPayment)}</span></span>
-                      <span>Closing costs <span className="text-white font-semibold">{fmt$(r.closingCosts)}</span></span>
+                    <p className="text-3xl font-black text-gray-900 dark:text-white">{fmt$(r.totalUpfront)}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                      <span>Down payment <span className="text-gray-900 dark:text-white font-semibold">{fmt$(r.downPayment)}</span></span>
+                      <span>Closing costs <span className="text-gray-900 dark:text-white font-semibold">{fmt$(r.closingCosts)}</span></span>
                       {r.repairCosts > 0 && (
-                        <span>Repairs <span className="text-white font-semibold">{fmt$(r.repairCosts)}</span></span>
+                        <span>Repairs <span className="text-gray-900 dark:text-white font-semibold">{fmt$(r.repairCosts)}</span></span>
                       )}
                     </div>
                   </div>
                 </div>
 
                 {/* Breakdown */}
-                <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-gray-700/50 flex items-center justify-between">
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Income &amp; Expense Breakdown</p>
-                    <p className="text-[10px] text-gray-600">per month unless noted</p>
+                <div className="bg-white dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-hidden card-3d">
+                  <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700/50 flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Income &amp; Expense Breakdown</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-600">per month unless noted</p>
                   </div>
                   <table className="w-full text-sm">
-                    <tbody className="divide-y divide-gray-700/30">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700/30">
                       <tr>
-                        <td className="px-4 py-2 text-gray-400">Gross Monthly Rent</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-green-400">{fmt$(r.annualRent / 12)} /month</td>
+                        <td className="px-4 py-2 text-gray-600 dark:text-gray-400">Gross Monthly Rent</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-green-600 dark:text-green-400">{fmt$(r.annualRent / 12)} /month</td>
                       </tr>
                       <tr>
-                        <td className="px-4 py-2 text-gray-400">Vacancy Loss</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.vacancyLoss / 12)} /month</td>
+                        <td className="px-4 py-2 text-gray-600 dark:text-gray-400">Vacancy Loss</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-white">− {fmt$(r.vacancyLoss / 12)} /month</td>
                       </tr>
                       <tr>
-                        <td className="px-4 py-2 text-gray-400">Property Taxes</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.taxesMonthly)} /month</td>
+                        <td className="px-4 py-2 text-gray-600 dark:text-gray-400">Property Taxes</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-white">− {fmt$(r.taxesMonthly)} /month</td>
                       </tr>
                       <tr>
-                        <td className="px-4 py-2 text-gray-400">Insurance</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.insMonthly)} /month</td>
+                        <td className="px-4 py-2 text-gray-600 dark:text-gray-400">Insurance</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-white">− {fmt$(r.insMonthly)} /month</td>
                       </tr>
                       <tr>
-                        <td className="px-4 py-2 text-gray-400">Maintenance</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.maintenance / 12)} /month</td>
+                        <td className="px-4 py-2 text-gray-600 dark:text-gray-400">Maintenance</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-white">− {fmt$(r.maintenance / 12)} /month</td>
                       </tr>
                       {r.mgmt > 0 && (
                         <tr>
-                          <td className="px-4 py-2 text-gray-400">Property Management</td>
-                          <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.mgmt / 12)} /month</td>
+                          <td className="px-4 py-2 text-gray-600 dark:text-gray-400">Property Management</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-white">− {fmt$(r.mgmt / 12)} /month</td>
                         </tr>
                       )}
                       <tr>
-                        <td className="px-4 py-2 text-gray-400">
+                        <td className="px-4 py-2 text-gray-600 dark:text-gray-400">
                           <Tooltip text="Income after all operating costs but before your mortgage — key for comparing deals regardless of financing.">
                             Net Operating Income
                           </Tooltip>
                         </td>
-                        <td className="px-4 py-2 text-right tabular-nums text-white font-semibold">{fmt$(r.noi / 12)} /month</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-white font-semibold">{fmt$(r.noi / 12)} /month</td>
                       </tr>
                       {r.annualDebt > 0 && (
                         <tr>
                           <td colSpan={2} className="px-4 pt-3 pb-1">
-                            <div className="border-t border-dashed border-gray-600/40" />
-                            <p className="text-[10px] text-gray-600 uppercase tracking-widest mt-1.5">Financing (annual totals)</p>
+                            <div className="border-t border-dashed border-gray-300/60 dark:border-gray-600/40" />
+                            <p className="text-[10px] text-gray-400 dark:text-gray-600 uppercase tracking-widest mt-1.5">Financing (annual totals)</p>
                           </td>
                         </tr>
                       )}
                       {r.annualDebt > 0 && (
                         <tr>
-                          <td className="px-4 py-2 text-gray-400">
+                          <td className="px-4 py-2 text-gray-600 dark:text-gray-400">
                             <Tooltip text="Total yearly mortgage payments (principal + interest). Subtracted from NOI to get actual annual cash flow.">
                               Annual Debt Service
                             </Tooltip>
                           </td>
-                          <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.annualDebt)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-white">− {fmt$(r.annualDebt)}</td>
                         </tr>
                       )}
                       {r.annualDebt > 0 && r.pitiMonthly > 0 && (
                         <tr>
-                          <td className="px-4 py-2 text-gray-400">
+                          <td className="px-4 py-2 text-gray-600 dark:text-gray-400">
                             <Tooltip text="Principal + Interest + Taxes + Insurance — your total monthly housing cost used by lenders to qualify financing.">
                               PITI
                             </Tooltip>
                           </td>
-                          <td className="px-4 py-2 text-right tabular-nums text-white">− {fmt$(r.pitiMonthly)} /month</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-white">− {fmt$(r.pitiMonthly)} /month</td>
                         </tr>
                       )}
-                      <tr className="bg-gray-700/10">
-                        <td className="px-4 py-2.5 text-gray-300 font-semibold">Annual Cash Flow</td>
-                        <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${r.annualCF >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <tr className="bg-gray-50/80 dark:bg-gray-700/10">
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 font-semibold">Annual Cash Flow</td>
+                        <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${r.annualCF >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                           {fmt$(r.annualCF)}
                         </td>
                       </tr>
@@ -620,16 +620,16 @@ function AppInner() {
                 </div>
 
                 {r.loanAmount > 0 && (
-                  <div className="bg-gray-800/40 rounded-xl border border-gray-700/40 p-4 space-y-2">
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Mortgage</p>
+                  <div className="bg-gray-100/60 dark:bg-gray-800/40 rounded-xl border border-gray-200/60 dark:border-gray-700/40 p-4 space-y-2 card-3d">
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Mortgage</p>
                     <div className="flex items-end justify-between">
                       <div>
                         <p className="text-xs text-gray-500">Loan Balance</p>
-                        <p className="text-2xl font-black text-white tabular-nums">{fmt$(r.loanAmount)}</p>
+                        <p className="text-2xl font-black text-gray-900 dark:text-white tabular-nums">{fmt$(r.loanAmount)}</p>
                       </div>
-                      <div className="text-right text-xs text-gray-400 space-y-0.5">
-                        <p>Monthly P&I <span className="text-white font-semibold tabular-nums">{fmt$(r.mtgMonthly)}</span></p>
-                        <p>PITI <span className="text-white font-semibold tabular-nums">{fmt$(r.pitiMonthly)}</span></p>
+                      <div className="text-right text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                        <p>Monthly P&I <span className="text-gray-900 dark:text-white font-semibold tabular-nums">{fmt$(r.mtgMonthly)}</span></p>
+                        <p>PITI <span className="text-gray-900 dark:text-white font-semibold tabular-nums">{fmt$(r.pitiMonthly)}</span></p>
                       </div>
                     </div>
                   </div>
@@ -640,19 +640,19 @@ function AppInner() {
                   disabled={saved}
                   className={`w-full border font-semibold py-2.5 rounded-xl transition-all text-sm
                     ${saved
-                      ? 'border-green-800 text-green-600 cursor-default'
-                      : 'border-sky-700 text-sky-400 hover:bg-sky-900/30 cursor-pointer'}`}
+                      ? 'border-green-500/50 dark:border-green-800 text-green-600 cursor-default'
+                      : 'border-sky-400 dark:border-sky-700 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 cursor-pointer'}`}
                 >
                   {saved ? '✓ Saved to Deal Log' : '+ Save to Deal Log'}
                 </button>
               </div>
             ) : (
-              <div className="h-72 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-800 text-center px-8 select-none">
-                <svg className="w-12 h-12 text-gray-700 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="h-72 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-800 text-center px-8 select-none">
+                <svg className="w-12 h-12 text-gray-300 dark:text-gray-700 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 12l8.954-8.955a1.5 1.5 0 012.092 0L22.25 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
                 </svg>
-                <p className="text-gray-400 font-semibold">No analysis yet</p>
-                <p className="text-gray-600 text-sm mt-1">Fill in the form and click<br /><span className="text-sky-500">Analyze Deal</span></p>
+                <p className="text-gray-500 dark:text-gray-400 font-semibold">No analysis yet</p>
+                <p className="text-gray-400 dark:text-gray-600 text-sm mt-1">Fill in the form and click<br /><span className="text-sky-500">Analyze Deal</span></p>
               </div>
             )}
           </div>
@@ -663,7 +663,7 @@ function AppInner() {
           <section>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-bold text-white">Deal Log</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Deal Log</h2>
                 <p className="text-gray-500 text-sm mt-0.5">
                   {deals.length} saved deal{deals.length !== 1 ? 's' : ''} — click any row to load it back
                 </p>
@@ -674,17 +674,17 @@ function AppInner() {
                     setDeals([]); setExpandedId(null); setLoadedId(null)
                   }
                 }}
-                className="text-xs text-gray-600 hover:text-red-400 transition-colors border border-gray-700 hover:border-red-800 px-3 py-1.5 rounded-lg"
+                className="text-xs text-gray-500 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors border border-gray-300 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-800 px-3 py-1.5 rounded-lg"
               >
                 Clear All
               </button>
             </div>
 
-            <div className="rounded-2xl border border-gray-800 overflow-hidden">
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden card-3d">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[860px]">
                   <thead>
-                    <tr className="bg-gray-900/90 border-b border-gray-800">
+                    <tr className="bg-gray-100/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800">
                       {['Address', 'Price', 'Rent/mo', 'Cap Rate', 'Cash Flow/mo', 'CoC Return', 'Upfront Capital', 'Score', 'Added', 'Actions'].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">
                           {h}
@@ -694,30 +694,29 @@ function AppInner() {
                   </thead>
                   <tbody>
                     {deals.map(d => (
-                      // Fragment requires explicit import — NOT React.Fragment
                       <Fragment key={d.id}>
                         <tr
-                          className={`border-b border-gray-800/60 transition-colors group cursor-pointer
-                            ${loadedId === d.id ? 'bg-sky-950/30' : 'hover:bg-gray-800/30'}`}
+                          className={`border-b border-gray-200/60 dark:border-gray-800/60 transition-colors group cursor-pointer
+                            ${loadedId === d.id ? 'bg-sky-50/50 dark:bg-sky-950/30' : 'hover:bg-gray-50/70 dark:hover:bg-gray-800/30'}`}
                           onClick={() => onLoadDeal(d)}
                         >
                           <td className="px-4 py-3">
                             <div className="flex flex-col">
-                              <span className="text-white font-medium max-w-[160px] truncate" title={d.address}>{d.address}</span>
+                              <span className="text-gray-900 dark:text-white font-medium max-w-[160px] truncate" title={d.address}>{d.address}</span>
                               {d.notes && (
                                 <span className="text-gray-500 text-xs max-w-[160px] truncate mt-0.5" title={d.notes}>{d.notes}</span>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-gray-300 whitespace-nowrap tabular-nums">{fmt$(d.askingPrice)}</td>
-                          <td className="px-4 py-3 text-gray-300 whitespace-nowrap tabular-nums">{fmt$(d.monthlyRent)}</td>
-                          <td className="px-4 py-3 text-sky-400 font-semibold whitespace-nowrap tabular-nums">{fmtPct(d.capRate)}</td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap tabular-nums">{fmt$(d.askingPrice)}</td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap tabular-nums">{fmt$(d.monthlyRent)}</td>
+                          <td className="px-4 py-3 text-sky-600 dark:text-sky-400 font-semibold whitespace-nowrap tabular-nums">{fmtPct(d.capRate)}</td>
                           <td className={`px-4 py-3 font-semibold whitespace-nowrap tabular-nums
-                            ${d.monthlyCF >= 450 ? 'text-green-400' : d.monthlyCF >= 250 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            ${d.monthlyCF >= 450 ? 'text-green-600 dark:text-green-400' : d.monthlyCF >= 250 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
                             {fmt$(d.monthlyCF)}
                           </td>
-                          <td className="px-4 py-3 text-gray-300 whitespace-nowrap tabular-nums">{fmtPct(d.coc)}</td>
-                          <td className="px-4 py-3 text-gray-300 whitespace-nowrap tabular-nums">
+                          <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap tabular-nums">{fmtPct(d.coc)}</td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap tabular-nums">
                             {d.totalUpfront ? fmt$(d.totalUpfront) : '—'}
                           </td>
                           <td className="px-4 py-3">
@@ -725,23 +724,23 @@ function AppInner() {
                               {d.scoreLabel}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">{d.date}</td>
+                          <td className="px-4 py-3 text-gray-400 dark:text-gray-600 whitespace-nowrap text-xs">{d.date}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                               <button
                                 onClick={() => setExpandedId(v => v === d.id ? null : d.id)}
                                 className={`transition-colors text-xs px-2 py-1 rounded-md border
                                   ${expandedId === d.id
-                                    ? 'border-sky-700 text-sky-400 bg-sky-900/20'
+                                    ? 'border-sky-400 dark:border-sky-700 text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20'
                                     : d.notes
-                                    ? 'border-gray-600 text-gray-300 bg-gray-800/40'
-                                    : 'border-gray-700 text-gray-600 hover:text-gray-400 hover:border-gray-600'}`}
+                                    ? 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-gray-100/40 dark:bg-gray-800/40'
+                                    : 'border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 hover:border-gray-400 dark:hover:border-gray-600'}`}
                               >
                                 {d.notes ? '📝' : 'Notes'}
                               </button>
                               <button
                                 onClick={() => onDelete(d.id)}
-                                className="text-gray-700 hover:text-red-400 transition-colors text-xl leading-none opacity-0 group-hover:opacity-100"
+                                className="text-gray-300 dark:text-gray-700 hover:text-red-500 dark:hover:text-red-400 transition-colors text-xl leading-none opacity-0 group-hover:opacity-100"
                                 title="Delete deal"
                               >
                                 &times;
@@ -751,10 +750,10 @@ function AppInner() {
                         </tr>
 
                         {expandedId === d.id && (
-                          <tr className="border-b border-gray-800/60 bg-gray-900/40">
+                          <tr className="border-b border-gray-200/60 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-900/40">
                             <td colSpan={10} className="px-4 py-3">
                               <div className="flex flex-col gap-1.5">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                                   Notes — {d.address || 'this deal'}
                                 </label>
                                 <textarea
@@ -763,9 +762,9 @@ function AppInner() {
                                   onChange={e => onUpdateNote(d.id, e.target.value)}
                                   onClick={e => e.stopPropagation()}
                                   placeholder="Add notes — neighborhood, repair estimates, seller motivation, next steps..."
-                                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-none transition-all"
+                                  className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-none transition-all"
                                 />
-                                <p className="text-[10px] text-gray-600">Notes auto-save as you type</p>
+                                <p className="text-[10px] text-gray-400 dark:text-gray-600">Notes auto-save as you type</p>
                               </div>
                             </td>
                           </tr>
@@ -777,8 +776,7 @@ function AppInner() {
               </div>
             </div>
 
-            {/* Browser-only storage notice */}
-            <p className="text-gray-600 text-xs text-center mt-3">
+            <p className="text-gray-400 dark:text-gray-600 text-xs text-center mt-3">
               🔒 Your deals are saved in your browser only — they won&apos;t sync across devices.
             </p>
 
@@ -791,11 +789,11 @@ function AppInner() {
         )}
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
-        <footer className="border-t border-gray-800/60 pt-8 pb-4">
+        <footer className="border-t border-gray-200/60 dark:border-gray-800/60 pt-8 pb-4">
           <div className="flex flex-col items-center gap-3 text-center">
             <img src="/logo.png" alt="Success with Section 8" className="h-10 w-auto object-contain opacity-60" />
             <p className="text-gray-500 text-sm font-medium">Built for Success with Section 8</p>
-            <p className="text-gray-700 text-xs">Estimates only — not financial advice</p>
+            <p className="text-gray-400 dark:text-gray-700 text-xs">Estimates only — not financial advice</p>
           </div>
         </footer>
 
